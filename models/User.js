@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  group: { type: String, required: true },
+    group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
+
   name: { type: String, required: true },
   mobile: { type: String, required: true, unique: true },
   email: { type: String },
