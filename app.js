@@ -1,27 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const express =require("express");
+const app=express();
+const cookieParser=require('cookie-parser');
+const morgan=require('morgan');
+const cors=require('cors');
+const authRouter = require("./routes/authRouter");
 
-const app = express();
-const port = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// Basic route
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to the server!' });
-});
+app.use(express.json());
+app.use(cookieParser());
+app.use(morgan('dev'));
+app.use(cors({
+  origin:'*',
+  credentials:true,
+}));
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
-});
+app.use("/api/v1/auth",authRouter);
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+
+
+module.exports=app;

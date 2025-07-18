@@ -1,0 +1,25 @@
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+  group: { type: String, required: true },
+  name: { type: String, required: true },
+  mobile: { type: String, required: true, unique: true },
+  email: { type: String },
+  role: {
+    type: String,
+    enum: ['member', 'admin', 'superadmin'],
+    default: 'member'
+  },
+  profileImage: { type: String},
+
+  businessInfo: {
+    businessName: { type: String, required: true },
+    businessCategory: { type: String, required: true },
+    businessAddress: { type: String, required: true }
+  },
+
+  approved: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('User', userSchema);
