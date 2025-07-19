@@ -1,84 +1,113 @@
 const User = require('../models/User');
 const Group = require('../models/Group');
-
+const Business = require('../models/Business');
+const mongoose = require('mongoose');
 const authController = {
   register: async (req, res) => {
     try {
       const {
-        group, // group name provided by frontend
+        group,
         name,
         mobile,
         email,
         profileImage,
         businessName,
         businessCategory,
-        businessAddress
+        businessAddress,
+        contactNumber
       } = req.body;
 
-      // Basic validation
-      if (!group || !name || !mobile || !profileImage || !businessName || !businessCategory || !businessAddress) {
+      // 1. Validate required fields
+      if (!group || !name || !mobile || !businessName || !businessCategory || !businessAddress) {
         return res.status(400).json({
           success: false,
-          message: "All required fields must be provided."
+          message: "Required fields missing."
         });
       }
 
-      let existingGroup = await Group.findOne({ name: group });
+      // 2. Find group
+      const existingGroup = await Group.findOne({ name: group });
       if (!existingGroup) {
-        existingGroup = await Group.create({ name: group });
-        console.log(`✅ Created new group: ${group}`);
+        return res.status(404).json({
+          success: false,
+          message: "Group not found"
+        });
       }
 
-      // Check for duplicate user
+      // 3. Check if user already exists
       const existingUser = await User.findOne({ mobile });
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'This mobile number already exists'
+          message: "Mobile number already registered"
         });
       }
 
-      // Create new user
-      const newUser = await User.create({
+      // 4. Create user
+      const user = await User.create({
         group: existingGroup._id,
         name,
         mobile,
         email,
-        profileImage,
-        businessInfo: {
-          businessName,
-          businessCategory,
-          businessAddress
-        }
+        profileImage
       });
 
-      const populatedUser = await User.findById(newUser._id).populate('group', 'name');
+      // 5. Check if business exists
+      let business = await Business.findOne({ businessName: businessName.trim() });
+
+      if (business) {
+
+        // Check if already 2 owners
+        if (business.owner.length >= 2) {
+          return res.status(400).json({
+            success: false,
+            message: "This business already has 2 owners"
+          });
+        }
+
+        // Check if user is already an owner
+        const isAlreadyOwner = business.owner.map(id => id.toString()).includes(user._id.toString());
+        if (isAlreadyOwner) {
+          return res.status(400).json({
+            success: false,
+            message: "User already owns this business"
+          });
+        }
+
+        // Add as second owner
+        business.owner.push(user._id);
+        await business.save();
+
+      } else {
+        // Create new business with this user as first owner
+        business = await Business.create({
+          group: existingGroup._id,
+          owner: [user._id],
+          businessName: businessName.trim(),
+          businessCategory,
+          businessAddress,
+          contactNumber
+        });
+      }
 
       res.status(201).json({
         success: true,
-        message: 'User registered successfully',
+        message: "User and business registered successfully",
         data: {
-          id: populatedUser._id,
-          group: populatedUser.group.name, // return group name
-          name: populatedUser.name,
-          email: populatedUser.email,
-          mobile: populatedUser.mobile,
-          profileImage: populatedUser.profileImage,
-          businessInfo: populatedUser.businessInfo,
-          createdAt: populatedUser.createdAt
+          user,
+          business
         }
       });
 
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error("❌ Registration error:", err);
       res.status(500).json({
         success: false,
-        message: 'Registration failed',
+        message: "Server error",
         error: err.message
       });
     }
   },
-
   superAdmin: async (req, res) => {
     const { mobile } = req.body;
 
@@ -93,11 +122,9 @@ const authController = {
         return res.status(403).json({ message: 'Invalid mobile or not superadmin' });
       }
 
-      const loginTime = new Date();
-
       res.status(200).json({
         message: 'Login successful',
-        loginAt: loginTime,
+        loginAt: new Date(),
         user: {
           id: user._id,
           name: user.name,
@@ -112,7 +139,6 @@ const authController = {
       res.status(500).json({ message: 'Server error' });
     }
   },
-
   getAllMembers: async (req, res) => {
     try {
       const members = await User.find({ role: 'member' })
@@ -132,45 +158,37 @@ const authController = {
       });
     }
   },
+  approveUser: async (req, res) => {
+  try {
+    const { userId } = req.params;
 
-  approveMember: async (req, res) => {
-    const { memberId } = req.params;
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { approved: true },
+      { new: true }
+    );
 
-    try {
-      const user = await User.findOneAndUpdate(
-        { _id: memberId, role: 'member' },
-        { approved: true },
-        { new: true }
-      );
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'Member not found'
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Member approved successfully',
-        member: {
-          id: user._id,
-          name: user.name,
-          mobile: user.mobile,
-          email: user.email,
-          approved: user.approved
-        }
-      });
-
-    } catch (err) {
-      console.error('Approval error:', err);
-      res.status(500).json({
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: 'Failed to approve member',
-        error: err.message
+        message: "User not found"
       });
     }
-  }
-};
 
+    res.status(200).json({
+      success: true,
+      message: "User approved successfully",
+      user
+    });
+
+  } catch (err) {
+    console.error("Error approving user:", err);
+    res.status(500).json({
+      success: false,
+      message: "Approval failed",
+      error: err.message
+    });
+  }
+}
+};
 module.exports = authController;

@@ -1,9 +1,11 @@
 const express = require('express');
 const requirementController = require('../controllers/requirementController');
 
-const groupRouter = express.Router();
+const requirementRouter = express.Router();
 
-groupRouter.post('/', requirementController.createRequirement);
-groupRouter.get('/', requirementController.getAllRequirements);
+requirementRouter.post('/', requirementController.createRequirement);
+requirementRouter.get('/', requirementController.getAllRequirements);
+requirementRouter.get("/public",requirementController.getPublicRequirements)
+requirementRouter.get("/tagged",requirementController.getTaggedRequirements);
 
-module.exports = groupRouter;
+module.exports = requirementRouter;

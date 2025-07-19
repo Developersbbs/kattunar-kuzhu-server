@@ -25,7 +25,8 @@ const requirementSchema = new mongoose.Schema({
   taggedMembers: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      default:[]
     }
   ],
   createdBy: {

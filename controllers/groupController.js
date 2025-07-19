@@ -2,18 +2,20 @@ const Group = require('../models/Group');
 const User = require('../models/User');
 
 const groupController = {
-  // ✅ Create a new group
+  // Create Group
   createGroup: async (req, res) => {
     try {
-      const { name, memberLimit, gdLeader } = req.body;
+      let { name, memberLimit, gdLeader } = req.body;
 
-      // Validate input
-      if (!name || !memberLimit || !gdLeader) {
+      if (!name || !memberLimit) {
         return res.status(400).json({
           success: false,
-          message: 'Group name, member limit, and GD leader are required'
+          message: 'Group name and member limit are required.'
         });
       }
+
+      // Normalize group name
+      name = name.trim().toLowerCase();
 
       // Check for duplicate group name
       const existingGroup = await Group.findOne({ name });
@@ -23,13 +25,23 @@ const groupController = {
           message: 'Group name already exists'
         });
       }
+      const createdBy = req.user?.id || req.body.createdBy;
+
+if (!createdBy) {
+  return res.status(400).json({
+    success: false,
+    message: 'Creator (createdBy) is required.'
+  });
+}
+
 
       // Create group
       const group = await Group.create({
         name,
         memberLimit,
         gdLeader,
-        status: 'active'
+        status: 'active',
+        createdBy
       });
 
       res.status(201).json({
@@ -48,7 +60,7 @@ const groupController = {
     }
   },
 
-  // ✅ Get all groups
+  // Get all groups
   getAllGroups: async (req, res) => {
     try {
       const groups = await Group.find().select('-__v');
@@ -66,12 +78,13 @@ const groupController = {
     }
   },
 
-  // ✅ Get all users of a group by group name
+  // Get users by group name
   getUsersByGroupName: async (req, res) => {
     try {
       const { groupName } = req.params;
+      const normalizedName = groupName.trim().toLowerCase();
 
-      const group = await Group.findOne({ name: groupName });
+      const group = await Group.findOne({ name: normalizedName });
       if (!group) {
         return res.status(404).json({ success: false, message: 'Group not found' });
       }
